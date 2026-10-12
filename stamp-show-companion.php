@@ -5,7 +5,7 @@
  * Plugin URI: https://stamp.show/developers/wordpress/
  * Author: Stamp.Show
  * Author URI: https://stamp.show/
- * Version: 0.1.2
+ * Version: 0.1.3
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -14,7 +14,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SSC_VERSION', '0.1.2');
+define('SSC_VERSION', '0.1.3');
 define('SSC_DIR', plugin_dir_path(__FILE__));
 
 require_once SSC_DIR . 'includes/class-ssc-client.php';
