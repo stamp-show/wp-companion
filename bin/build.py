@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SLUG = 'stamp-show-companion'
-INCLUDE = ['stamp-show-companion.php', 'uninstall.php', 'README.md', 'includes', 'assets']
+INCLUDE = ['stamp-show-companion.php', 'uninstall.php', 'README.md', 'LICENSE', 'includes', 'assets']
 
 header = (ROOT / 'stamp-show-companion.php').read_text(encoding='utf-8')
 version = re.search(r'^\s*\*\s*Version:\s*(\S+)', header, re.M).group(1)
