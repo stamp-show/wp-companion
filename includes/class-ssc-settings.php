@@ -65,6 +65,10 @@ class SSC_Settings
         ?>
         <div class="wrap">
             <h1>Stamp.Show</h1>
+            <p>
+                <a href="https://stamp.show/" target="_blank" rel="noopener">stamp.show</a> ·
+                <a href="https://stamp.show/developers/wordpress/" target="_blank" rel="noopener"><?php esc_html_e('Documentation', 'stamp-show-companion'); ?></a>
+            </p>
             <?php if ($notice === 'ok') : ?>
                 <div class="notice notice-success"><p>Connection works.</p></div>
             <?php elseif (strpos($notice, 'error:') === 0) : ?>
