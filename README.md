@@ -15,5 +15,3 @@ WordPress plugin for organizers who run their expo's public site on WordPress wh
 Each shortcode is also a block in the editor (search "Stamp.Show"), rendered server-side with the same output.
 
 Content is cached for an hour and cleared early by the webhook. Developers can hook `stamp_show_event( $event, $data )`.
-
-Design and API details: Stamp.Show repo, `docs/WP_COMPANION.md`.
