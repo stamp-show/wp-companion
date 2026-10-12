@@ -33,7 +33,7 @@
                         props.setAttributes(change);
                     };
                     if (def.attributes[key].type === 'number') {
-                        return el(RangeControl, { key: key, label: labels[key] || key, value: props.attributes[key], min: 1, max: 16, onChange: onChange });
+                        return el(RangeControl, { key: key, label: labels[key] || key, value: props.attributes[key], min: 1, max: 10, onChange: onChange });
                     }
                     return el(TextControl, { key: key, label: labels[key] || key, value: props.attributes[key], onChange: onChange });
                 });

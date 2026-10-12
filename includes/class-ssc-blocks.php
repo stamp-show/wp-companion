@@ -18,7 +18,7 @@ class SSC_Blocks
             'title' => 'Application form',
             'attributes' => [
                 'classes' => ['type' => 'string', 'default' => ''],
-                'max_frames' => ['type' => 'number', 'default' => 16],
+                'max_frames' => ['type' => 'number', 'default' => 10],
             ],
         ],
     ];

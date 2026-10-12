@@ -149,7 +149,8 @@ class SSC_Modules
         if (!SSC_Client::is_configured()) {
             return '';
         }
-        $atts = shortcode_atts(['classes' => '', 'max_frames' => 16], $atts);
+        $atts = shortcode_atts(['classes' => '', 'max_frames' => 10], $atts);
+        $atts['max_frames'] = max(1, min(10, (int) $atts['max_frames']));
         $classes = array_filter(array_map('trim', explode(',', $atts['classes'])));
 
         $notice = '';
