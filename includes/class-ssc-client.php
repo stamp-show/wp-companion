@@ -44,7 +44,9 @@ class SSC_Client
         $status = (int) wp_remote_retrieve_response_code($response);
         $data = json_decode((string) wp_remote_retrieve_body($response), true);
         if ($status < 200 || $status >= 300) {
-            $message = is_array($data) ? (string) ($data['error'] ?? $data['message'] ?? '') : '';
+            // The API answers errors as {"detail": "..."} (or an object for field errors).
+            $detail = is_array($data) ? ($data['detail'] ?? $data['error'] ?? $data['message'] ?? '') : '';
+            $message = is_string($detail) ? $detail : (string) wp_json_encode($detail);
             return new WP_Error('ssc_http_' . $status, $message !== '' ? $message : 'Stamp.Show answered HTTP ' . $status, ['status' => $status]);
         }
         return is_array($data) ? $data : [];
