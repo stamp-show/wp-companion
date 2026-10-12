@@ -50,7 +50,7 @@ class SSC_Blocks
                 'editor_script' => 'ssc-blocks',
                 'render_callback' => static function (array $attrs) use ($slug): string {
                     $method = str_replace('-', '_', $slug);
-                    $html = SSC_Modules::$method($attrs);
+                    $html = SSC_Modules::render($method, $attrs);
                     return '<div class="wp-block-stamp-show-' . esc_attr($slug) . '">' . $html . '</div>';
                 },
             ]);

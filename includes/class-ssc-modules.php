@@ -16,13 +16,32 @@ class SSC_Modules
             'stampshow_apply' => 'apply',
         ];
         foreach ($map as $tag => $method) {
-            add_shortcode($tag, [self::class, $method]);
+            add_shortcode($tag, static fn ($atts = []) => self::render($method, $atts));
         }
         add_action('admin_post_nopriv_ssc_apply', [self::class, 'submit_application']);
         add_action('admin_post_ssc_apply', [self::class, 'submit_application']);
     }
 
-    /** @return array|string the items, or the HTML to print instead */
+    /**
+     * Single entry point of shortcodes and blocks, so the same filters apply to both.
+     *
+     * Filters: `stamp_show_shortcode_atts` ( array $atts, string $module ) and
+     * `stamp_show_output` ( string $html, string $module, array $atts ). $module is one of
+     * palmares, sponsors, special_prizes, judges, commissioners, catalog, apply.
+     */
+    public static function render(string $module, $atts = []): string
+    {
+        $atts = apply_filters('stamp_show_shortcode_atts', is_array($atts) ? $atts : [], $module);
+        $html = self::$module($atts);
+        return (string) apply_filters('stamp_show_output', $html, $module, $atts);
+    }
+
+    /**
+     * @return array|string the items, or the HTML to print instead
+     *
+     * Filter `stamp_show_data` ( array $data, string $resource ) can change what the API returned
+     * (hide an item, reorder, add a field) before anything is rendered.
+     */
     private static function load(string $resource)
     {
         $data = SSC_Client::resource($resource);
@@ -31,7 +50,7 @@ class SSC_Modules
                 ? '<p class="ssc-error">Stamp.Show: ' . esc_html($data->get_error_message()) . '</p>'
                 : '';
         }
-        return $data;
+        return apply_filters('stamp_show_data', $data, $resource);
     }
 
     private static function list_items(string $resource, callable $row, string $class): string
@@ -44,6 +63,8 @@ class SSC_Modules
         foreach ((array) ($data['items'] ?? []) as $item) {
             $cell = $row($item);
             if ($cell !== null) {
+                // Filter `stamp_show_item_html` ( string $html, array $item, string $resource ): the inside of one <li>.
+                $cell = (string) apply_filters('stamp_show_item_html', $cell, $item, $resource);
                 $html .= '<li>' . $cell . '</li>';
             }
         }
@@ -57,7 +78,7 @@ class SSC_Modules
 
     public static function sponsors($atts = []): string
     {
-        $atts = shortcode_atts(['category' => ''], $atts);
+        $atts = shortcode_atts(['category' => ''], $atts, 'stampshow_sponsors');
         $only = mb_strtolower(trim($atts['category']));
         return self::list_items('sponsors', static function ($s) use ($only) {
             if ($only !== '' && mb_strtolower(trim((string) $s['category'])) !== $only) {
@@ -149,7 +170,7 @@ class SSC_Modules
         if (!SSC_Client::is_configured()) {
             return '';
         }
-        $atts = shortcode_atts(['classes' => '', 'max_frames' => 10], $atts);
+        $atts = shortcode_atts(['classes' => '', 'max_frames' => 10], $atts, 'stampshow_apply');
         $atts['max_frames'] = max(1, min(10, (int) $atts['max_frames']));
         $classes = array_filter(array_map('trim', explode(',', $atts['classes'])));
 
@@ -190,7 +211,7 @@ class SSC_Modules
         }
         $post = static fn ($k) => isset($_POST[$k]) ? sanitize_text_field(wp_unslash($_POST[$k])) : '';
 
-        $result = SSC_Client::request('POST', '/applications', [
+        $payload = [
             'exhibitor' => array_filter([
                 'email' => sanitize_email($post('email')),
                 'name' => $post('name'),
@@ -198,14 +219,22 @@ class SSC_Modules
             ]),
             'title' => $post('title'),
             'exhibit_class' => $post('exhibit_class'),
-            'frame_count' => (int) $post('frame_count'),
-        ]);
+            'frame_count' => max(1, min(10, (int) $post('frame_count'))),
+        ];
+        // Filter `stamp_show_application_payload` ( array $payload, array $post ): the body sent to POST /applications,
+        // e.g. to add `external_reference_id`. Return a WP_Error to refuse the submission with that message.
+        $payload = apply_filters('stamp_show_application_payload', $payload, wp_unslash($_POST));
+        $result = is_wp_error($payload) ? $payload : SSC_Client::request('POST', '/applications', $payload);
 
         if (is_wp_error($result)) {
+            // Action `stamp_show_application_failed` ( WP_Error $error, array $payload )
+            do_action('stamp_show_application_failed', $result, is_array($payload) ? $payload : []);
             $token = wp_generate_password(8, false);
             set_transient('ssc_apply_err_' . $token, $result->get_error_message(), 5 * MINUTE_IN_SECONDS);
             wp_safe_redirect(add_query_arg('ssc_apply', $token, $back));
         } else {
+            // Action `stamp_show_application_submitted` ( array $application, array $payload ): $application is the API's answer.
+            do_action('stamp_show_application_submitted', $result, $payload);
             wp_safe_redirect(add_query_arg('ssc_apply', 'ok', $back));
         }
         exit;

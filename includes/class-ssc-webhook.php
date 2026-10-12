@@ -46,7 +46,12 @@ class SSC_Webhook
                 break;
         }
 
+        // Actions: `stamp_show_event` ( string $event, array $data ) for every verified event, and
+        // `stamp_show_event_{$event}` ( array $data ), e.g. `stamp_show_event_results.published`.
         do_action('stamp_show_event', $event, $data);
+        if ($event !== '') {
+            do_action('stamp_show_event_' . $event, $data);
+        }
         return new WP_REST_Response(['received' => true], 200);
     }
 }
