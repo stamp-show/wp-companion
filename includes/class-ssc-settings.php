@@ -11,6 +11,7 @@ class SSC_Settings
         add_action('admin_init', [self::class, 'register']);
         add_action('admin_post_ssc_test', [self::class, 'test']);
         add_action('admin_post_ssc_flush', [self::class, 'flush']);
+        add_action('admin_post_ssc_decide', [self::class, 'decide']);
     }
 
     public static function menu(): void
@@ -35,6 +36,19 @@ class SSC_Settings
         exit;
     }
 
+    /** Accepts or rejects a pending application with the expo's API key. */
+    public static function decide(): void
+    {
+        check_admin_referer('ssc_decide');
+        current_user_can('manage_options') || wp_die('Forbidden');
+        $id = isset($_POST['application']) ? sanitize_text_field(wp_unslash($_POST['application'])) : '';
+        $decision = isset($_POST['decision']) && $_POST['decision'] === 'reject' ? 'reject' : 'accept';
+        $result = SSC_Client::request('POST', '/applications/' . rawurlencode($id) . '/' . $decision);
+        $notice = is_wp_error($result) ? 'error:' . $result->get_error_message() : ($decision === 'accept' ? 'accepted' : 'rejected');
+        wp_safe_redirect(add_query_arg('ssc_notice', rawurlencode($notice), admin_url('options-general.php?page=stamp-show')));
+        exit;
+    }
+
     public static function flush(): void
     {
         check_admin_referer('ssc_flush');
@@ -55,6 +69,8 @@ class SSC_Settings
                 <div class="notice notice-success"><p>Connection works.</p></div>
             <?php elseif (strpos($notice, 'error:') === 0) : ?>
                 <div class="notice notice-error"><p><?php echo esc_html(substr($notice, 6)); ?></p></div>
+            <?php elseif ($notice === 'accepted' || $notice === 'rejected') : ?>
+                <div class="notice notice-success"><p>Application <?php echo esc_html($notice); ?>.</p></div>
             <?php elseif ($notice === 'flushed') : ?>
                 <div class="notice notice-success"><p>Cache cleared.</p></div>
             <?php endif; ?>
@@ -84,11 +100,51 @@ class SSC_Settings
                 <?php wp_nonce_field('ssc_flush'); submit_button('Clear cache', 'secondary', 'submit', false); ?>
             </form>
 
+            <?php self::applications(); ?>
+
             <h2>Shortcodes</h2>
             <p><code>[stampshow_palmares]</code> <code>[stampshow_sponsors category="Platinum"]</code> <code>[stampshow_special_prizes]</code>
                <code>[stampshow_judges]</code> <code>[stampshow_commissioners]</code> <code>[stampshow_catalog]</code>
                <code>[stampshow_apply classes="Traditional,Thematic"]</code></p>
         </div>
         <?php
+    }
+
+    /** Pending applications received through the API, with accept / reject buttons. */
+    private static function applications(): void
+    {
+        if (!SSC_Client::is_configured()) {
+            return;
+        }
+        $list = SSC_Client::request('GET', '/applications');
+        echo '<h2>Applications</h2>';
+        if (is_wp_error($list)) {
+            echo '<p>' . esc_html($list->get_error_message()) . '</p>';
+            return;
+        }
+        if (!$list) {
+            echo '<p>No applications yet.</p>';
+            return;
+        }
+        echo '<table class="widefat striped"><thead><tr><th>Exhibit</th><th>Class</th><th>Frames</th><th>Exhibitor</th><th>Status</th><th></th></tr></thead><tbody>';
+        foreach ($list as $a) {
+            $status = (string) ($a['status'] ?? '');
+            echo '<tr><td>' . esc_html((string) ($a['title'] ?? '')) . '</td><td>' . esc_html((string) ($a['exhibit_class'] ?? ''))
+                . '</td><td>' . esc_html((string) ($a['frame_count'] ?? '')) . '</td><td>' . esc_html((string) ($a['exhibitor_email'] ?? ''))
+                . '</td><td>' . esc_html($status) . '</td><td>';
+            if ($status === 'pending') {
+                foreach (['accept' => 'Accept', 'reject' => 'Reject'] as $decision => $label) {
+                    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
+                        . '<input type="hidden" name="action" value="ssc_decide">'
+                        . '<input type="hidden" name="application" value="' . esc_attr((string) $a['id']) . '">'
+                        . '<input type="hidden" name="decision" value="' . esc_attr($decision) . '">';
+                    wp_nonce_field('ssc_decide');
+                    submit_button($label, $decision === 'accept' ? 'primary small' : 'secondary small', 'submit', false);
+                    echo '</form> ';
+                }
+            }
+            echo '</td></tr>';
+        }
+        echo '</tbody></table>';
     }
 }
